@@ -13,7 +13,18 @@ The goal of this project is to offer a **stable reference implementation** for r
 This repository focuses **only on the final, working configuration**.
 
 ---
+## 🎥 Video Walkthrough
 
+A complete step-by-step walkthrough of this project is available on YouTube:
+👉 https://www.youtube.com/watch?v=XXXXXXXX
+
+The video explains:
+- Cluster architecture
+- KRaft quorum behavior
+- Metrics configuration
+- How to run and verify the setup
+
+---
 ## 📦 Project Overview
 
 * Kafka version: **7.6.1 (Confluent Platform)**
