@@ -1,61 +1,63 @@
 # Kafka 3-Node Cluster in Docker (KRaft Mode)
 
-This repository contains a **real, production‑style Kafka 3‑node cluster** running in **KRaft mode (no Zookeeper)** using Docker Compose.
+This repository provides a **clean, production-style Kafka cluster** running in **KRaft mode (no Zookeeper)** using **Docker Compose**.
 
-> This project is intentionally designed for **learning by debugging real failures** — not just a happy‑path demo.
-> It is the companion repository for a YouTube video where the cluster is built, broken, and fixed step by step.
+The goal of this project is to offer a **stable reference implementation** for running Kafka locally with:
 
----
+* Three nodes
+* Proper listener separation
+* Metadata quorum
+* Replication enabled
+* Prometheus-ready JMX metrics
 
-## 🎯 What This Project Covers
-
-* Kafka **KRaft mode** (no Zookeeper)
-* 3 nodes acting as **broker + controller**
-* Proper **internal vs external listeners**
-* Real **replication & ISR behavior**
-* **Prometheus JMX exporter** per broker
-* Debugging common Kafka‑in‑Docker failures
-
-This is **not** a toy example. Every problem shown here is something people hit in real life.
+This repository focuses **only on the final, working configuration**.
 
 ---
 
-## 📦 Repository Structure
+## 📦 Project Overview
+
+* Kafka version: **7.6.1 (Confluent Platform)**
+* Mode: **KRaft (Kafka Raft Metadata mode)**
+* Nodes: **3 (broker + controller)**
+* Zookeeper: **Not used**
+* Orchestration: **Docker Compose**
+* Metrics: **Prometheus JMX Exporter**
+
+---
+
+## 📁 Repository Structure
 
 ```
 .
-├── docker-compose.yml          # Final working baseline
-├── steps/                      # Intentionally broken configs (used in the video)
-│   ├── step-01-no-cluster-id.yml
-│   ├── step-02-bad-metrics-port.yml
-│   ├── step-03-bad-jar.yml
-│   └── step-04-permission.yml
-├── data/                       # Kafka data directories (gitignored)
+├── docker-compose.yml          # Final, working Kafka cluster
+├── jmx-exporter/               # Prometheus JMX exporter files
+│   ├── jmx_prometheus_javaagent.jar
+│   └── kafka.yml
+├── data/                       # Kafka data directories (not committed)
 │   ├── kafka1/
 │   ├── kafka2/
 │   └── kafka3/
-├── jmx-exporter/
-│   ├── jmx_prometheus_javaagent.jar
-│   └── kafka.yml
 └── README.md
 ```
 
+> The `data/` directory should be added to `.gitignore`.
+
 ---
 
-## 🚀 Prerequisites
+## 🔧 Prerequisites
 
 * Docker
 * Docker Compose (v2)
-* Linux / macOS (tested on Linux)
+* Linux or macOS (tested on Linux)
 * `wget` installed
 
 ---
 
-## 📥 JMX Exporter Setup
+## 📥 Download Prometheus JMX Exporter
 
-The Prometheus JMX exporter **must be a real JAR file**.
+Kafka metrics are exposed using the Prometheus JMX Java Agent.
 
-Download and rename it exactly like this:
+Download and rename the agent exactly as shown below:
 
 ```bash
 cd jmx-exporter
@@ -63,53 +65,57 @@ wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0
 mv jmx_prometheus_javaagent-0.20.0.jar jmx_prometheus_javaagent.jar
 ```
 
-If this file is missing, corrupted, or renamed incorrectly, **Kafka will crash at startup**.
+The file name **must match** the one referenced in `docker-compose.yml`.
 
 ---
 
 ## 🆔 Generate the KRaft Cluster ID
 
-Kafka in KRaft mode **will not start without a cluster ID**.
+Kafka running in KRaft mode requires a **cluster ID**.
 
-Generate one UUID **once**, and reuse it for all brokers:
+Generate it once using the following command:
 
 ```bash
 docker run --rm confluentinc/cp-kafka:7.6.1 bash -lc "kafka-storage random-uuid"
 ```
 
-Copy the output and place it into **`CLUSTER_ID` for all three services** in `docker-compose.yml`.
+Copy the generated UUID and set it as the value of `CLUSTER_ID` **for all three services** in `docker-compose.yml`.
 
-> ⚠️ Using different IDs means you do **not** have a cluster.
+> All brokers must share the **same** cluster ID.
 
 ---
 
 ## 🔐 Fix Data Directory Permissions
 
-The Kafka container runs as **UID 1000**.
-Your local data directories must be writable by this user:
+The Kafka container runs as user **UID 1000**.
+
+Ensure the local data directories are writable:
 
 ```bash
 sudo chown -R 1000:1000 ./data
 sudo chmod -R u+rwX,g+rwX ./data
 ```
 
-If you skip this step, Kafka will fail with a *data directory not writable* error.
-
 ---
 
-## ▶️ Start the Final Working Cluster
+## ▶️ Start the Kafka Cluster
 
-Always start clean when testing:
+Always start with a clean state when running the cluster for the first time:
 
 ```bash
 docker compose down -v
 rm -rf ./data
 mkdir -p ./data/kafka1 ./data/kafka2 ./data/kafka3
 sudo chown -R 1000:1000 ./data
+```
+
+Start the cluster:
+
+```bash
 docker compose up -d
 ```
 
-Check status:
+Verify that all containers are running:
 
 ```bash
 docker compose ps
@@ -117,15 +123,15 @@ docker compose ps
 
 ---
 
-## 📊 Verify JMX Metrics
+## 📊 Verify Metrics Endpoints
 
-Each broker exposes metrics on its own port:
+Each broker exposes Prometheus metrics on a dedicated port:
 
 * Broker 1 → `http://localhost:19101/metrics`
 * Broker 2 → `http://localhost:19102/metrics`
 * Broker 3 → `http://localhost:19103/metrics`
 
-Test:
+Test using `curl`:
 
 ```bash
 curl -s http://localhost:19101/metrics | head
@@ -133,27 +139,11 @@ curl -s http://localhost:19102/metrics | head
 curl -s http://localhost:19103/metrics | head
 ```
 
-> If `curl` prints a warning when piped to `head`, that is normal.
-
 ---
 
-## ⚠️ Important: Running Kafka CLI Commands
+## 🧠 Verify KRaft Metadata Quorum
 
-Because `KAFKA_OPTS` includes the JMX Java agent, **Kafka CLI tools may crash** if they inherit it.
-
-Always clear `KAFKA_OPTS` when running CLI commands inside containers:
-
-```bash
-docker exec -it -e KAFKA_OPTS= kafka1 bash -lc "kafka-topics --bootstrap-server kafka1:19092 --list"
-```
-
-This is a **very common and very confusing issue**.
-
----
-
-## 🧠 Verify KRaft Quorum
-
-Check controller quorum status:
+Check quorum status:
 
 ```bash
 docker exec -it -e KAFKA_OPTS= kafka1 bash -lc "kafka-metadata-quorum --bootstrap-server kafka1:19092 describe --status"
@@ -165,89 +155,50 @@ Check replication state:
 docker exec -it -e KAFKA_OPTS= kafka1 bash -lc "kafka-metadata-quorum --bootstrap-server kafka1:19092 describe --replication"
 ```
 
-You should see:
+Expected state:
 
-* 3 voters
-* 1 leader
-* 0 lag
+* One leader
+* Three voters
+* Zero replication lag
 
 ---
 
-## 🧪 Test Real Replication & Failover
+## 📌 Running Kafka CLI Commands
 
-Create a replicated topic:
+Kafka CLI tools inherit environment variables from the container.
+
+To avoid conflicts with the JMX Java agent, always clear `KAFKA_OPTS` when running CLI commands:
+
+```bash
+docker exec -it -e KAFKA_OPTS= kafka1 bash -lc "kafka-topics --bootstrap-server kafka1:19092 --list"
+```
+
+---
+
+## 🧪 Create and Verify a Replicated Topic
+
+Create a topic with replication factor 3:
 
 ```bash
 docker exec -it -e KAFKA_OPTS= kafka1 bash -lc "kafka-topics --bootstrap-server kafka1:19092 --create --topic test --partitions 3 --replication-factor 3"
 ```
 
-Describe it:
+Describe the topic:
 
 ```bash
 docker exec -it -e KAFKA_OPTS= kafka1 bash -lc "kafka-topics --bootstrap-server kafka1:19092 --describe --topic test"
 ```
 
-Simulate a broker failure:
-
-```bash
-docker stop kafka2
-```
-
-ISR should shrink but remain available (`min.insync.replicas=2`).
-
-Bring it back:
-
-```bash
-docker start kafka2
-```
-
-After catch‑up, ISR should return to all three brokers.
-
 ---
 
-## 🧨 The `steps/` Directory (Intentional Failures)
+## 📄 Notes
 
-The `steps/` folder contains **broken docker‑compose files** used in the video:
-
-| Step    | Problem Demonstrated       |
-| ------- | -------------------------- |
-| step‑01 | Missing CLUSTER_ID         |
-| step‑02 | JMX metrics port conflict  |
-| step‑03 | Invalid or missing JAR     |
-| step‑04 | Data directory permissions |
-
-Each step demonstrates:
-
-* The exact error
-* Why it happens
-* How to fix it properly
-
----
-
-## 📌 Who This Repo Is For
-
-* Backend engineers
-* DevOps engineers
-* Anyone who tried Kafka in Docker and got stuck
-
-If you’re looking for a **copy‑paste demo**, this is not it.
-If you want to understand **why Kafka breaks and how to debug it**, this repo is for you.
-
----
-
-## 📺 Video & Next Steps
-
-This repository is used in a YouTube walkthrough.
-
-Planned follow‑ups:
-
-* Prometheus + Grafana dashboards
-* ISR lag alerts
-* SASL/SCRAM security
-* Dedicated KRaft controllers
+* This repository provides a **baseline Kafka cluster configuration**.
+* It is suitable for local development, testing, and learning KRaft-based deployments.
+* For production usage, additional considerations are required (security, monitoring, backups).
 
 ---
 
 ## ✅ License
 
-MIT (use it, break it, learn from it)
+MIT
