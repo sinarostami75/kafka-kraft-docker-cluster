@@ -19,7 +19,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:19093,2@kafka2:19093,3@kafka3:19093"
-      CLUSTER_ID: "fg2SpXj-Rs2Cb0-amGPTsw"
+      CLUSTER_ID: "fg2SpXj-Rs2Cb0-amGPTsw"  # Replace with the ID you created
 
       # Listeners
       KAFKA_LISTENERS: "INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:19093"
@@ -64,7 +64,7 @@ services:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:19093,2@kafka2:19093,3@kafka3:19093"
-      CLUSTER_ID: "fg2SpXj-Rs2Cb0-amGPTsw"
+      CLUSTER_ID: "fg2SpXj-Rs2Cb0-amGPTsw" # Replace with the ID you created
 
       KAFKA_LISTENERS: "INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:19093"
       KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka2:19092,EXTERNAL://localhost:9093"
@@ -102,7 +102,7 @@ services:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: "broker,controller"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:19093,2@kafka2:19093,3@kafka3:19093"
-      CLUSTER_ID: "fg2SpXj-Rs2Cb0-amGPTsw"
+      CLUSTER_ID: "fg2SpXj-Rs2Cb0-amGPTsw" # Replace with the ID you created
 
       KAFKA_LISTENERS: "INTERNAL://0.0.0.0:19092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:19093"
       KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka3:19092,EXTERNAL://localhost:9094"
